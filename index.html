@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Operations Command Center | March 2026</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --primary: #1a2a6c; --accent: #b21f1f; --success: #27ae60; --light: #f4f7f6; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--light); margin: 0; padding: 20px; color: #333; }
+        
+        .header-flex { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #ddd; padding-bottom: 10px; }
+        .controls select { padding: 10px 15px; font-size: 1.1rem; border-radius: 8px; border: 2px solid var(--primary); font-weight: bold; }
+
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .kpi-card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center; border-top: 5px solid var(--primary); }
+        .kpi-card h3 { color: #7f8c8d; font-size: 0.8rem; text-transform: uppercase; margin: 0; }
+        .kpi-card .value { font-size: 1.8rem; font-weight: 800; color: var(--primary); margin: 5px 0; }
+
+        .chart-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; }
+        .chart-container { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); min-height: 350px; }
+        
+        /* Fixed chart size for better presentation */
+        canvas { max-height: 320px !important; }
+        h2 { margin: 0 0 15px 0; color: var(--primary); font-size: 1.2rem; }
+    </style>
+</head>
+<body>
+
+    <div class="header-flex">
+        <div>
+            <h1>Executive Operations Portal</h1>
+            <p style="margin:0; color: #666;">Data Analysis by: The Unicorn Supervisor</p>
+        </div>
+        <div class="controls">
+            <select id="teamSelector" onchange="updateDashboard()">
+                <option value="all">Global View (All Teams)</option>
+                <option value="west">West Team</option>
+                <option value="south1">South 1 Team</option>
+                <option value="south2">South 2 Team</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="kpi-grid">
+        <div class="kpi-card"><h3>Total Tasks</h3><div class="value" id="kpi-tasks">296</div></div>
+        <div class="kpi-card"><h3>Resolution Rate</h3><div class="value" id="kpi-res" style="color: var(--success)">70.9%</div></div>
+        <div class="kpi-card"><h3>Avg Duration</h3><div class="value" id="kpi-dur">43.4 min</div></div>
+    </div>
+
+    <div class="chart-grid">
+        <div class="chart-container">
+            <h2 id="chartTitle">Performance Trends: Volume vs. Success %</h2>
+            <canvas id="mainChart"></canvas>
+        </div>
+        <div class="chart-container">
+            <h2>Workload Breakdown (%)</h2>
+            <canvas id="breakdownChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        const teamData = {
+            all: {
+                tasks: 296, res: '70.9%', dur: '43.4', title: 'Global Performance Trends',
+                labels: ['Week 10', 'Week 11', 'Week 12', 'Week 13', 'Week 14'],
+                volume: [43, 46, 104, 70, 22],
+                resolution: [78.3, 74.5, 67.9, 63.4, 84.6],
+                breakdownLabels: ['Recovery', 'Wi-Fi/Browsing', 'SBB Install', 'SM Offline', 'Other'],
+                breakdownValues: [129, 61, 18, 21, 67]
+            },
+            west: {
+                tasks: 86, res: '65.1%', dur: '29.0', title: 'West Team Deep Dive',
+                labels: ['Week 10', 'Week 11', 'Week 12', 'Week 13', 'Week 14'],
+                volume: [18, 12, 25, 23, 3],
+                resolution: [73.7, 83.3, 48.0, 69.6, 57.1],
+                breakdownLabels: ['Recovery', 'Wi-Fi/Browsing', 'SBB Install', 'SM Offline', 'Other'],
+                breakdownValues: [30, 12, 5, 5, 34]
+            },
+            south1: {
+                tasks: 112, res: '67.0%', dur: '33.3', title: 'South 1 Resilience Story',
+                labels: ['Week 10', 'Week 11', 'Week 12', 'Week 13', 'Week 14'],
+                volume: [11, 18, 46, 27, 10],
+                resolution: [72.7, 61.1, 67.4, 59.3, 90.0],
+                breakdownLabels: ['Recovery', 'Wi-Fi/Browsing', 'SBB Install', 'SM Offline', 'Other'],
+                breakdownValues: [65, 20, 7, 10, 10]
+            },
+            south2: {
+                tasks: 98, res: '80.6%', dur: '67.7', title: 'South 2 Quality Analysis',
+                labels: ['Week 10', 'Week 11', 'Week 12', 'Week 13', 'Week 14'],
+                volume: [14, 16, 33, 20, 9],
+                resolution: [87.5, 82.4, 82.9, 61.9, 100.0],
+                breakdownLabels: ['Recovery', 'Wi-Fi/Browsing', 'SBB Install', 'SM Offline', 'Other'],
+                breakdownValues: [34, 29, 6, 6, 23]
+            }
+        };
+
+        let myChart, breakdownChart;
+        const legendStyle = { labels: { font: { size: 14, weight: 'bold' } } };
+
+        function initChart() {
+            myChart = new Chart(document.getElementById('mainChart').getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: teamData.all.labels,
+                    datasets: [
+                        { label: 'Volume', data: teamData.all.volume, backgroundColor: 'rgba(26, 42, 108, 0.4)', yAxisID: 'y' },
+                        { label: 'Success %', data: teamData.all.resolution, type: 'line', borderColor: '#b21f1f', borderWidth: 4, yAxisID: 'y1' }
+                    ]
+                },
+                options: { plugins: { legend: legendStyle }, scales: { y: { position: 'left' }, y1: { position: 'right', grid: { drawOnChartArea: false } } } }
+            });
+
+            breakdownChart = new Chart(document.getElementById('breakdownChart').getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: teamData.all.breakdownLabels,
+                    datasets: [{
+                        data: teamData.all.breakdownValues,
+                        backgroundColor: ['#1a2a6c', '#b21f1f', '#fdbb2d', '#27ae60', '#95a5a6']
+                    }]
+                },
+                options: { 
+                    plugins: { 
+                        legend: legendStyle,
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const value = context.raw;
+                                    const percentage = ((value / total) * 100).toFixed(1);
+                                    return `${context.label}: ${value} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    } 
+                }
+            });
+        }
+
+        function updateDashboard() {
+            const sel = document.getElementById('teamSelector').value;
+            const d = teamData[sel];
+            
+            document.getElementById('kpi-tasks').innerText = d.tasks;
+            document.getElementById('kpi-res').innerText = d.res;
+            document.getElementById('kpi-dur').innerText = d.dur + ' min';
+            document.getElementById('chartTitle').innerText = d.title;
+
+            myChart.data.labels = d.labels;
+            myChart.data.datasets[0].data = d.volume;
+            myChart.data.datasets[1].data = d.resolution;
+            myChart.update();
+
+            breakdownChart.data.labels = d.breakdownLabels;
+            breakdownChart.data.datasets[0].data = d.breakdownValues;
+            breakdownChart.update();
+        }
+
+        initChart();
+    </script>
+</body>
+</html>
