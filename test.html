@@ -1,0 +1,58 @@
+let myChart, breakdownChart; // Define variables for both charts
+
+function initChart() {
+    // ... (Your existing myChart code stays here)
+	myChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: teamData.all.labels,
+                    datasets: [{
+                        label: 'Task Volume',
+                        data: teamData.all.volume,
+                        backgroundColor: 'rgba(26, 42, 108, 0.4)',
+                        yAxisID: 'y'
+                    }, {
+                        label: 'Resolution Rate %',
+                        data: teamData.all.resolution,
+                        type: 'line',
+                        borderColor: '#b21f1f',
+                        borderWidth: 4,
+                        tension: 0.4,
+                        yAxisID: 'y1'
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: { type: 'linear', position: 'left', title: { display: true, text: 'Volume' } },
+                        y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Success %' } }
+                    }
+                }
+            });
+        }
+
+    // INITIALIZE NEW BREAKDOWN CHART
+    const ctx2 = document.getElementById('breakdownChart').getContext('2d');
+    breakdownChart = new Chart(ctx2, {
+        type: 'doughnut',
+        data: {
+            labels: teamData.all.breakdownLabels,
+            datasets: [{
+                data: teamData.all.breakdownValues,
+                backgroundColor: ['#1a2a6c', '#b21f1f', '#fdbb2d', '#27ae60', '#95a5a6']
+            }]
+        },
+        options: { responsive: true }
+    });
+}
+
+function updateDashboard() {
+    const selection = document.getElementById('teamSelector').value;
+    const data = teamData[selection];
+
+    // ... (Your existing KPI and mainChart update code stays here)
+
+    // UPDATE BREAKDOWN CHART
+    breakdownChart.data.labels = data.breakdownLabels;
+    breakdownChart.data.datasets[0].data = data.breakdownValues;
+    breakdownChart.update();
+}
